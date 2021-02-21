@@ -6,6 +6,8 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
 
 ''' Importing Dataset '''
 df = pd.read_csv('data/complaints.csv')
@@ -13,20 +15,32 @@ df = pd.read_csv('data/complaints.csv')
 ''' Treating Data '''
 #extracting columns
 df = df[['Product', 'Consumer complaint narrative', 'Issue']]
+
 #renaming Consumer complaint narrative column
 df = df.rename(columns = {'Consumer complaint narrative': 'Narrative'})
-#removing nil values 
+
+# the fewer categories, the more accurate the result becomes
+df = df.loc[(df['Product'] == 'Credit card')| (df['Product'] == 'Mortgage')| (df['Product'] == 'Student loan')| (df['Product'] == 'Consumer Loan')]
+
+#removing nil values
+df = df.loc[~df['Narrative'].isna()]
 df = df.loc[~df['Issue'].isna()]
+
 #creating NarrativeAndIssue concated column to achieve better results
 df['NarrativeAndIssue'] = df['Issue'] +""+df['Narrative']
+
 #reseting the index of the DataFrame using drop=True to avoid the old index being added as a column
 df.reset_index(drop = True)
+
 #removing duplicate rows for Product
 df_aux = df['Product'].value_counts().reset_index()['index'].reset_index()
+
 #renaming index column in place
 df_aux.rename(columns = {'level_0' : 'Product_id', 'index' : 'Product'}, inplace = True)
+
 #merging df and df_aux with inner join
 df = df.merge(df_aux, on = 'Product', how= 'inner')
+
 #deleting Product column
 del df['Product']
 
@@ -52,9 +66,13 @@ knn_params = {
     'knn__metric': ['minkowski','cosine'],
     'knn__n_jobs': [-1]
 }
-
+#Exhaustive searching over specified parameter values for an estimator
 knn_model = GridSearchCV(pipe, param_grid = knn_params, n_jobs = -1)
+
 knn_model.fit(X_train, y_train)
 
-preds = knn_model.predict(X_test)
-np.mean(preds == y_test)
+y_pred = knn_model.predict(X_test)
+
+confusion_matrix(y_test,y_pred)
+classification_report(y_test,y_pred)
+knn_model.best_score_
