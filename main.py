@@ -12,11 +12,13 @@ df = pd.read_csv('data/complaints.csv')
 
 ''' Treating Data '''
 #extracting columns
-df = df[['Product', 'Consumer complaint narrative']]
+df = df[['Product', 'Consumer complaint narrative', 'Issue']]
 #renaming Consumer complaint narrative column
 df = df.rename(columns = {'Consumer complaint narrative': 'Narrative'})
-#removing nil values for Narrative column
-df = df.loc[~df['Narrative'].isna()]
+#removing nil values 
+df = df.loc[~df['Issue'].isna()]
+#creating NarrativeAndIssue concated column to achieve better results
+df['NarrativeAndIssue'] = df['Issue'] +""+df['Narrative']
 #reseting the index of the DataFrame using drop=True to avoid the old index being added as a column
 df.reset_index(drop = True)
 #removing duplicate rows for Product
@@ -32,16 +34,17 @@ del df['Product']
 df_sample = df.sample(5000).reset_index(drop = True)
 
 ''' Spliting Dataset into Train and Test '''
-X = df_sample['Narrative'].to_list()
+X = df_sample['NarrativeAndIssue'].to_list()
 y = df_sample['Product_id'].to_list()
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30, random_state=9)
 
 ''' Building KNN Classifier Model '''
-clf = Pipeline([
-    ('count',CountVectorizer()),
-    ('tfidf',TfidfTransformer(use_idf=True)),
-    ('knn',KNeighborsClassifier())
+#tokenize, and then performs a erm Frequency times Inverse Document Frequency transformation before passing the resulting features along to the classifier
+pipe = Pipeline([
+    ('counts', CountVectorizer()),
+    ('tf_idf', TfidfTransformer(use_idf=True)),
+    ('knn', KNeighborsClassifier())
 ])
 
 knn_params = {
@@ -50,8 +53,8 @@ knn_params = {
     'knn__n_jobs': [-1]
 }
 
-knn_model = GridSearchCV(clf, param_grid = knn_params, n_jobs = -1)
+knn_model = GridSearchCV(pipe, param_grid = knn_params, n_jobs = -1)
 knn_model.fit(X_train, y_train)
 
 preds = knn_model.predict(X_test)
-print(np.mean(preds == y_test))
+np.mean(preds == y_test)
